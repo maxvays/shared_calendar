@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  timezone  String    @default("UTC")
+  groups    GroupMembership[]
+  events    Event[]   @relation("CreatedEvents")
+  busyTimes BusyBlock[]
+  groupsCreated Group[] @relation("UserCreatedGroups")
+  eventAttendances EventAttendee[]
+}
+
+
+model Group {
+  id        String             @id @default(uuid())
+  name      String
+  createdBy String
+  creator   User               @relation("UserCreatedGroups", fields: [createdBy], references: [id])
+  members   GroupMembership[]
+  events    Event[]
+}
+
+
+model GroupMembership {
+  userId  String
+  groupId String
+  role    String   @default("member")
+
+  user  User  @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  groupId     String
+  createdBy   String
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  visibility  String   @default("group")
+
+  group   Group @relation(fields: [groupId], references: [id])
+  creator User  @relation("CreatedEvents", fields: [createdBy], references: [id])
+  attendees EventAttendee[]
+  sourceOfBusyBlock BusyBlock[] @relation("SourceEvent")
+}
+
+
+model EventAttendee {
+  eventId String
+  userId  String
+  status  String
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([eventId, userId])
+}
+
+
+model BusyBlock {
+  id         String   @id @default(uuid())
+  userId     String
+  startTime  DateTime
+  endTime    DateTime
+  sourceEventId String? 
+
+  user        User   @relation(fields: [userId], references: [id])
+  sourceEvent Event? @relation("SourceEvent", fields: [sourceEventId], references: [id])
+}
